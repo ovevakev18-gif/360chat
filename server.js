@@ -28,15 +28,9 @@ function broadcast(data) {
 
 // Webhook — incoming messages from 360dialog
 app.post('/webhook', (req, res) => {
-
   console.log("🔥 WEBHOOK HIT");
   console.log(JSON.stringify(req.body, null, 2));
 
-  res.sendStatus(200);
-
-  const body = req.body;
-  
-app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 
   const body = req.body;
@@ -64,6 +58,7 @@ app.post('/webhook', (req, res) => {
       messages[phone] = [];
     }
 
+    // 🔥 ВАЖНО — сохраняем сообщение
     messages[phone].push({
       id: Date.now() + Math.random(),
       text,
@@ -71,6 +66,30 @@ app.post('/webhook', (req, res) => {
       ts,
       status: 'recv'
     });
+
+    chats[phone].lastMessage = text;
+    chats[phone].lastTs = ts;
+    chats[phone].unread = (chats[phone].unread || 0) + 1;
+
+    broadcast({
+      type: 'new_message',
+      phone,
+      message: { text, from: phone, ts }
+    });
+  });
+});
+
+    chats[phone].lastMessage = text;
+    chats[phone].lastTs = ts;
+    chats[phone].unread = (chats[phone].unread || 0) + 1;
+
+    broadcast({
+      type: 'new_message',
+      phone,
+      message: { text, from: phone, ts }
+    });
+  });
+});
 
     chats[phone].lastMessage = text;
     chats[phone].lastTs = ts;
