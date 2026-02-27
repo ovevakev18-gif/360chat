@@ -48,6 +48,55 @@ app.post('/webhook', (req, res) => {
       const text = msg.text?.body || '[media]';
       const wabaId = msg.id;
 
+      if (value.messages) {
+  value.messages.forEach(async (msg) => {
+
+    const phone = msg.from.replace(/\D/g, ''); // нормализуем номер
+    const text = msg.text?.body || '[media]';
+    const wabaId = msg.id;
+
+    // ================= MARK AS READ =================
+    try {
+      await axios.post(
+        `${WABA_URL}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: wabaId
+        },
+        {
+          headers: {
+            'D360-API-KEY': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    } catch (err) {
+      console.log('Read error:', err.response?.data || err.message);
+    }
+    // =================================================
+
+    if (!chats[phone]) {
+      chats[phone] = { phone, name: '+' + phone, unread: 0 };
+      messages[phone] = [];
+    }
+
+    messages[phone].push({
+      id: uuidv4(),
+      wabaId,
+      text,
+      from: phone,
+      status: 'received',
+      ts: Date.now()
+    });
+
+    chats[phone].unread++;
+
+    broadcast({ type: 'refresh' });
+
+  });
+}
+
       if (!chats[phone]) {
         chats[phone] = { phone, name: '+' + phone, unread: 0 };
         messages[phone] = [];
