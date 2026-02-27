@@ -29,22 +29,49 @@ function broadcast(data) {
 // Webhook — incoming messages from 360dialog
 app.post('/webhook', (req, res) => {
   res.sendStatus(200);
+
   const body = req.body;
-  if (!body.messages) return;
-  body.messages.forEach(msg => {
+
+  const messagesArr =
+    body?.entry?.[0]?.changes?.[0]?.value?.messages;
+
+  if (!messagesArr) return;
+
+  messagesArr.forEach(msg => {
     if (msg.type !== 'text') return;
+
     const phone = msg.from;
     const text = msg.text?.body;
     const ts = msg.timestamp ? msg.timestamp * 1000 : Date.now();
+
     if (!chats[phone]) {
-      chats[phone] = { name: '+' + phone, phone, unread: 0, lastMessage: text, lastTs: ts };
+      chats[phone] = {
+        name: '+' + phone,
+        phone,
+        unread: 0,
+        lastMessage: text,
+        lastTs: ts
+      };
       messages[phone] = [];
     }
-    messages[phone].push({ id: Date.now() + Math.random(), text, from: phone, ts, status: 'recv' });
+
+    messages[phone].push({
+      id: Date.now() + Math.random(),
+      text,
+      from: phone,
+      ts,
+      status: 'recv'
+    });
+
     chats[phone].lastMessage = text;
     chats[phone].lastTs = ts;
     chats[phone].unread = (chats[phone].unread || 0) + 1;
-    broadcast({ type: 'new_message', phone, message: { text, from: phone, ts } });
+
+    broadcast({
+      type: 'new_message',
+      phone,
+      message: { text, from: phone, ts }
+    });
   });
 });
 
