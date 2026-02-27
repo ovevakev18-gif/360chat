@@ -2,16 +2,23 @@
 let currentPhone = null;
 const ws = new WebSocket(location.origin.replace('http', 'ws'));
 
-ws.onmessage = () => {
-  if (currentPhone) loadMessages(currentPhone);
+document.addEventListener("DOMContentLoaded", () => {
+
+  ws.onmessage = () => {
+    if (currentPhone) loadMessages(currentPhone);
+    loadChats();
+  };
+
   loadChats();
-};
+});
 
 async function loadChats() {
   const res = await fetch('/api/chats');
   const chats = await res.json();
 
   const div = document.getElementById('chats');
+  if (!div) return; // защита от падения
+
   div.innerHTML = '';
 
   chats.forEach(c => {
@@ -31,6 +38,8 @@ async function loadMessages(phone) {
   const msgs = await res.json();
 
   const div = document.getElementById('messages');
+  if (!div) return; // защита
+
   div.innerHTML = '';
 
   msgs.forEach(m => {
@@ -45,6 +54,8 @@ async function loadMessages(phone) {
 
 async function send() {
   const textInput = document.getElementById('text');
+  if (!textInput) return;
+
   const text = textInput.value.trim();
 
   if (!currentPhone) {
@@ -77,6 +88,4 @@ async function send() {
     alert('Сервер не отвечает');
   }
 }
-
-loadChats();
 </script>
