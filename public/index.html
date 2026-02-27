@@ -1,263 +1,91 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>360chat</title>
-
+<title>360Chat</title>
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Segoe UI, Helvetica, Arial, sans-serif;
-}
-
-body {
-    display: flex;
-    height: 100vh;
-    background: #f0f2f5;
-}
-
-/* SIDEBAR */
-.sidebar {
-    width: 70px;
-    background: #202c33;
-}
-
-/* CHAT LIST */
-.chatlist {
-    width: 350px;
-    background: #ffffff;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-}
-
-.chatlist-header {
-    padding: 15px;
-    font-weight: bold;
-    font-size: 18px;
-    border-bottom: 1px solid #eee;
-}
-
-.chats {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.chat-item {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-}
-
-.chat-item:hover {
-    background: #f5f6f6;
-}
-
-/* MAIN CHAT */
-.chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.chat-header {
-    padding: 15px;
-    background: #f0f2f5;
-    border-bottom: 1px solid #ddd;
-    font-weight: bold;
-}
-
-.messages {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-    background: #efeae2;
-}
-
-.message {
-    margin-bottom: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    max-width: 60%;
-}
-
-.me {
-    background: #d9fdd3;
-    margin-left: auto;
-}
-
-.other {
-    background: white;
-}
-
-.input-area {
-    padding: 10px;
-    display: flex;
-    border-top: 1px solid #ddd;
-    background: #f0f2f5;
-}
-
-.input-area input {
-    flex: 1;
-    padding: 10px;
-    border-radius: 20px;
-    border: 1px solid #ccc;
-}
-
-.input-area button {
-    margin-left: 10px;
-    padding: 10px 20px;
-    border-radius: 20px;
-    border: none;
-    background: #00a884;
-    color: white;
-    cursor: pointer;
-}
+body { font-family: Arial; display: flex; height: 100vh; margin: 0; }
+#chats { width: 250px; border-right: 1px solid #ddd; overflow-y: auto; }
+#chat { flex: 1; display: flex; flex-direction: column; }
+#messages { flex: 1; padding: 10px; overflow-y: auto; }
+.me { text-align: right; color: green; }
+.them { text-align: left; color: black; }
+input { padding: 10px; width: 80%; }
+button { padding: 10px; }
+.chat-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
 </style>
 </head>
 <body>
 
-<div class="chatlist">
-    <div class="chatlist-header">Чаты</div>
-    <div class="chats" id="chatList"></div>
-</div>
+<div id="chats"></div>
 
-<div class="chat">
-    <div class="chat-header" id="chatHeader">Выберите чат</div>
-    <div class="messages" id="messages"></div>
-    <div class="input-area">
-        <input id="messageInput" placeholder="Введите сообщение" onkeypress="if(event.key==='Enter') sendMessage()">
-        <button onclick="sendMessage()">Отправить</button>
-    </div>
+<div id="chat">
+  <div id="messages"></div>
+  <div>
+    <input id="text" placeholder="Type message..." />
+    <button onclick="send()">Send</button>
+  </div>
 </div>
 
 <script>
-
 let currentPhone = null;
+const ws = new WebSocket(location.origin.replace('http', 'ws'));
 
-/* =========================
-   WEBSOCKET
-========================= */
-
-const socket = new WebSocket(
-    location.protocol === 'https:'
-        ? 'wss://' + location.host
-        : 'ws://' + location.host
-);
-
-socket.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-
-    if (data.type === 'new_message') {
-
-        // если чат открыт — добавляем сразу
-        if (currentPhone === data.phone) {
-            appendMessage(data.message.text, false);
-        }
-
-        loadChats();
-    }
-
-    if (data.type === 'message_sent') {
-        // можно добавить статус отправки
-    }
+ws.onmessage = () => {
+  if (currentPhone) loadMessages(currentPhone);
+  loadChats();
 };
 
-/* =========================
-   LOAD CHATS
-========================= */
-
 async function loadChats() {
-    const res = await fetch('/api/chats');
-    const data = await res.json();
+  const res = await fetch('/api/chats');
+  const chats = await res.json();
 
-    const chatList = document.getElementById('chatList');
-    chatList.innerHTML = '';
+  const div = document.getElementById('chats');
+  div.innerHTML = '';
 
-    data.sort((a,b) => b.lastTs - a.lastTs);
-
-    data.forEach(chat => {
-        const div = document.createElement('div');
-        div.className = 'chat-item';
-        div.innerHTML = `
-            <div><b>${chat.name}</b></div>
-            <div style="font-size:13px;color:gray">${chat.lastMessage || ''}</div>
-        `;
-        div.onclick = () => openChat(chat.phone, chat.name);
-        chatList.appendChild(div);
-    });
+  chats.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'chat-item';
+    el.innerText = c.name;
+    el.onclick = () => {
+      currentPhone = c.phone;
+      loadMessages(c.phone);
+    };
+    div.appendChild(el);
+  });
 }
 
-/* =========================
-   OPEN CHAT
-========================= */
+async function loadMessages(phone) {
+  const res = await fetch('/api/messages/' + phone);
+  const msgs = await res.json();
 
-async function openChat(phone, name) {
-    currentPhone = phone;
-    document.getElementById('chatHeader').innerText = name;
+  const div = document.getElementById('messages');
+  div.innerHTML = '';
 
-    const res = await fetch('/api/messages/' + phone);
-    const data = await res.json();
+  msgs.forEach(m => {
+    const el = document.createElement('div');
+    el.className = m.from === 'me' ? 'me' : 'them';
+    el.innerText = m.text + ' (' + m.status + ')';
+    div.appendChild(el);
+  });
 
-    const messagesDiv = document.getElementById('messages');
-    messagesDiv.innerHTML = '';
-
-    data.forEach(msg => {
-        appendMessage(msg.text, msg.from === 'me');
-    });
-
-    scrollDown();
+  div.scrollTop = div.scrollHeight;
 }
 
-/* =========================
-   APPEND MESSAGE
-========================= */
+async function send() {
+  const text = document.getElementById('text').value;
+  if (!text || !currentPhone) return;
 
-function appendMessage(text, isMe) {
-    const div = document.createElement('div');
-    div.className = 'message ' + (isMe ? 'me' : 'other');
-    div.innerText = text;
+  await fetch('/api/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: currentPhone, text })
+  });
 
-    document.getElementById('messages').appendChild(div);
-    scrollDown();
+  document.getElementById('text').value = '';
 }
-
-function scrollDown() {
-    const container = document.getElementById('messages');
-    container.scrollTop = container.scrollHeight;
-}
-
-/* =========================
-   SEND MESSAGE
-========================= */
-
-async function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-
-    if (!text || !currentPhone) return;
-
-    // показываем мгновенно
-    appendMessage(text, true);
-
-    input.value = '';
-
-    await fetch('/api/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: currentPhone, text })
-    });
-
-    loadChats();
-}
-
-/* ========================= */
 
 loadChats();
-
 </script>
 
 </body>
