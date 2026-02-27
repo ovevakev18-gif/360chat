@@ -1,22 +1,23 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const axios = require('axios');
-const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
 const API_KEY = process.env.API_KEY;
 const WABA_URL = 'https://waba-v2.360dialog.io';
 
-// In-memory storage
 let chats = {};
 let messages = {};
 
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+// ================= WEBSOCKET =================
 
 function broadcast(data) {
   wss.clients.forEach(client => {
@@ -26,99 +27,104 @@ function broadcast(data) {
   });
 }
 
-// =======================
-// WEBHOOK
-// =======================
+// ================= WEBHOOK =================
 
 app.post('/webhook', (req, res) => {
-  console.log("🔥 WEBHOOK HIT");
-  console.log(JSON.stringify(req.body, null, 2));
-
   res.sendStatus(200);
 
   const body = req.body;
 
-  const messagesArr =
-    body?.entry?.[0]?.changes?.[0]?.value?.messages;
+  const value = body?.entry?.[0]?.changes?.[0]?.value;
+  if (!value) return;
 
-  if (!messagesArr) return;
+  // Входящие сообщения
+  if (value.messages) {
+    value.messages.forEach(msg => {
+      const phone = msg.from;
+      const text = msg.text?.body || '[media]';
+      const wabaId = msg.id;
 
-  messagesArr.forEach(msg => {
-    if (msg.type !== 'text') return;
+      if (!chats[phone]) {
+        chats[phone] = {
+          phone,
+          name: '+' + phone,
+          unread: 0
+        };
+        messages[phone] = [];
+      }
 
-    const phone = msg.from;
-    const text = msg.text?.body;
-    const ts = msg.timestamp ? msg.timestamp * 1000 : Date.now();
+      messages[phone].push({
+        id: uuidv4(),
+        wabaId,
+        text,
+        from: phone,
+        status: 'received',
+        ts: Date.now()
+      });
 
-    if (!chats[phone]) {
-      chats[phone] = {
-        name: '+' + phone,
+      chats[phone].unread++;
+
+      broadcast({ type: 'new_message', phone });
+    });
+  }
+
+  // Статусы
+  if (value.statuses) {
+    value.statuses.forEach(status => {
+      const phone = status.recipient_id;
+      const msgId = status.id;
+
+      if (!messages[phone]) return;
+
+      const msg = messages[phone].find(m => m.wabaId === msgId);
+      if (msg) {
+        msg.status = status.status;
+      }
+
+      broadcast({
+        type: 'status_update',
         phone,
-        unread: 0,
-        lastMessage: text,
-        lastTs: ts
-      };
-      messages[phone] = [];
-    }
-
-    messages[phone].push({
-      id: Date.now() + Math.random(),
-      text,
-      from: phone,
-      ts,
-      status: 'recv'
+        wabaId: msgId,
+        status: status.status
+      });
     });
-
-    chats[phone].lastMessage = text;
-    chats[phone].lastTs = ts;
-    chats[phone].unread = (chats[phone].unread || 0) + 1;
-
-    broadcast({
-      type: 'new_message',
-      phone,
-      message: { text, from: phone, ts }
-    });
-  });
+  }
 });
 
-// =======================
-// SEND MESSAGE
-// =======================
+// ================= SEND MESSAGE =================
 
 app.post('/api/send', async (req, res) => {
   const { phone, text } = req.body;
 
   try {
-    await axios.post(
-  `${WABA_URL}/messages`,
-  {
-    messaging_product: 'whatsapp',
-    to: phone,
-    type: 'text',
-    text: { body: text }
-  },
-  {
-    headers: {
-      'D360-API-KEY': API_KEY,
-      'Content-Type': 'application/json'
-    }
-  }
-);
+    const response = await axios.post(
+      `${WABA_URL}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: { body: text }
+      },
+      {
+        headers: {
+          'D360-API-KEY': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const wabaId = response.data.messages[0].id;
 
     if (!messages[phone]) messages[phone] = [];
 
     messages[phone].push({
-      id: Date.now(),
+      id: uuidv4(),
+      wabaId,
       text,
       from: 'me',
-      ts: Date.now(),
-      status: 'sent'
+      status: 'sent',
+      ts: Date.now()
     });
-
-    if (chats[phone]) {
-      chats[phone].lastMessage = text;
-      chats[phone].lastTs = Date.now();
-    }
 
     broadcast({ type: 'message_sent', phone });
 
@@ -129,9 +135,7 @@ app.post('/api/send', async (req, res) => {
   }
 });
 
-// =======================
-// API ROUTES
-// =======================
+// ================= API =================
 
 app.get('/api/chats', (req, res) => {
   res.json(Object.values(chats));
@@ -141,36 +145,8 @@ app.get('/api/messages/:phone', (req, res) => {
   res.json(messages[req.params.phone] || []);
 });
 
-app.post('/api/chats', (req, res) => {
-  const { name, phone } = req.body;
+// ================= START =================
 
-  if (!chats[phone]) {
-    chats[phone] = {
-      name,
-      phone,
-      unread: 0,
-      lastMessage: '',
-      lastTs: Date.now()
-    };
-    messages[phone] = [];
-  }
-
-  res.json(chats[phone]);
-});
-
-app.post('/api/chats/:phone/read', (req, res) => {
-  if (chats[req.params.phone]) {
-    chats[req.params.phone].unread = 0;
-  }
-  res.json({ ok: true });
-});
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(3000, () => {
+  console.log('🚀 WhatsApp Server Running');
 });
