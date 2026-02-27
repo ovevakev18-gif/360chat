@@ -28,6 +28,15 @@ function broadcast(data) {
 
 // Webhook — incoming messages from 360dialog
 app.post('/webhook', (req, res) => {
+
+  console.log("🔥 WEBHOOK HIT");
+  console.log(JSON.stringify(req.body, null, 2));
+
+  res.sendStatus(200);
+
+  const body = req.body;
+  
+app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 
   const body = req.body;
