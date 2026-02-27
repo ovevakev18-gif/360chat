@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-const API_KEY = process.env.API_KEY || '62MY9vMEMnTNH6wOBR7s8EAWAK';
+const API_KEY = process.env.API_KEY;
 const WABA_URL = 'https://waba-v2.360dialog.io';
 
 // In-memory storage
