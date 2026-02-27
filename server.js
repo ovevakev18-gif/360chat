@@ -90,21 +90,20 @@ app.post('/api/send', async (req, res) => {
 
   try {
     await axios.post(
-      `${WABA_URL}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phone,
-        type: 'text',
-        text: { body: text }
-      },
-      {
-        headers: {
-          'D360-API-KEY': API_KEY,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+  `${WABA_URL}/messages`,
+  {
+    messaging_product: 'whatsapp',
+    to: phone,
+    type: 'text',
+    text: { body: text }
+  },
+  {
+    headers: {
+      'D360-API-KEY': API_KEY,
+      'Content-Type': 'application/json'
+    }
+  }
+);
 
     if (!messages[phone]) messages[phone] = [];
 
