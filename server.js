@@ -128,28 +128,7 @@ app.post('/api/send', async (req, res) => {
 
     broadcast({ type: 'refresh' });
 
-    res.json({ success: true });
-
-  } catch (e) {
-    res.status(500).json({ error: e.response?.data || e.message });
-  }
-});
-  
-  // ================= MESSAGE STATUSES =================
-  if (value.statuses) {
-    for (const status of value.statuses) {
-
-      const phone = status.recipient_id.replace(/\D/g, '');
-      const msgId = status.id;
-
-      if (!messages[phone]) continue;
-
-      const msg = messages[phone].find(m => m.wabaId === msgId);
-      if (msg) msg.status = status.status;
-
-      broadcast({ type: 'refresh' });
-    }
-  }
+    
 
 });
 
