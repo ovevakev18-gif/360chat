@@ -2,10 +2,12 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const axios = require('axios');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(express.json());
+app.use(express.static('public')); // 👈 фронтенд
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -26,17 +28,20 @@ function broadcast(data) {
   });
 }
 
+// ================= ROOT =================
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ================= WEBHOOK =================
 
 app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 
-  const body = req.body;
-
-  const value = body?.entry?.[0]?.changes?.[0]?.value;
+  const value = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return;
 
-  // Входящие сообщения
   if (value.messages) {
     value.messages.forEach(msg => {
       const phone = msg.from;
@@ -44,11 +49,7 @@ app.post('/webhook', (req, res) => {
       const wabaId = msg.id;
 
       if (!chats[phone]) {
-        chats[phone] = {
-          phone,
-          name: '+' + phone,
-          unread: 0
-        };
+        chats[phone] = { phone, name: '+' + phone, unread: 0 };
         messages[phone] = [];
       }
 
@@ -63,11 +64,10 @@ app.post('/webhook', (req, res) => {
 
       chats[phone].unread++;
 
-      broadcast({ type: 'new_message', phone });
+      broadcast({ type: 'refresh' });
     });
   }
 
-  // Статусы
   if (value.statuses) {
     value.statuses.forEach(status => {
       const phone = status.recipient_id;
@@ -76,28 +76,18 @@ app.post('/webhook', (req, res) => {
       if (!messages[phone]) return;
 
       const msg = messages[phone].find(m => m.wabaId === msgId);
-      if (msg) {
-        msg.status = status.status;
-      }
+      if (msg) msg.status = status.status;
 
-      broadcast({
-        type: 'status_update',
-        phone,
-        wabaId: msgId,
-        status: status.status
-      });
+      broadcast({ type: 'refresh' });
     });
   }
 });
 
-// ================= SEND MESSAGE =================
+// ================= SEND =================
 
 app.post('/api/send', async (req, res) => {
   let { phone, text } = req.body;
-
   phone = phone.replace('+', '');
-
-  console.log("SENDING TO:", phone);
 
   try {
     const response = await axios.post(
@@ -129,7 +119,7 @@ app.post('/api/send', async (req, res) => {
       ts: Date.now()
     });
 
-    broadcast({ type: 'message_sent', phone });
+    broadcast({ type: 'refresh' });
 
     res.json({ success: true });
 
@@ -150,7 +140,7 @@ app.get('/api/messages/:phone', (req, res) => {
 
 // ================= START =================
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 server.listen(PORT, () => {
   console.log('🚀 WhatsApp Server Running on port', PORT);
