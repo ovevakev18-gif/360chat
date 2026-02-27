@@ -1,1 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360chat</title>
 
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Segoe UI, Helvetica, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    background: #f0f2f5;
+}
+
+/* LEFT SIDEBAR */
+.sidebar {
+    width: 70px;
+    background: #202c33;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    justify-content: space-between;
+}
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.sidebar button {
+    background: none;
+    border: none;
+    color: #aebac1;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.profile-circle {
+    width: 40px;
+    height: 40px;
+    background: #00a884;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* CHAT LIST */
+.chatlist {
+    width: 350px;
+    background: #ffffff;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+}
+
+.chatlist-header {
+    padding: 15px;
+    font-weight: bold;
+    font-size: 18px;
+    border-bottom: 1px solid #eee;
+}
+
+.search {
+    padding: 10px;
+}
+
+.search input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.chats {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.chat-item {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.chat-item:hover {
+    background: #f5f6f6;
+}
+
+.chat-name {
+    font-weight: bold;
+}
+
+.chat-last {
+    font-size: 13px;
+    color: gray;
+}
+
+/* MAIN CHAT */
+.chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    padding: 15px;
+    background: #f0f2f5;
+    border-bottom: 1px solid #ddd;
+    font-weight: bold;
+}
+
+.messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #efeae2;
+}
+
+.message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 60%;
+}
+
+.me {
+    background: #d9fdd3;
+    margin-left: auto;
+}
+
+.other {
+    background: white;
+}
+
+.input-area {
+    padding: 10px;
+    display: flex;
+    border-top: 1px solid #ddd;
+    background: #f0f2f5;
+}
+
+.input-area input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+}
+
+.input-area button {
+    margin-left: 10px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    background: #00a884;
+    color: white;
+    cursor: pointer;
+}
+
+/* PROFILE MODAL */
+.modal {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    width: 300px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    padding: 20px;
+    display: none;
+}
+
+.modal h3 {
+    margin-bottom: 10px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-top">
+        <button>💬</button>
+        <button>📞</button>
+        <button>⚙️</button>
+    </div>
+    <div class="profile-circle" onclick="toggleProfile()">T</div>
+</div>
+
+<div class="chatlist">
+    <div class="chatlist-header">Чаты</div>
+    <div class="search">
+        <input placeholder="Поиск">
+    </div>
+    <div class="chats" id="chatList"></div>
+</div>
+
+<div class="chat">
+    <div class="chat-header" id="chatHeader">Выберите чат</div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+        <input id="messageInput" placeholder="Введите сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+</div>
+
+<div class="modal" id="profileModal">
+    <h3>Мой профиль</h3>
+    <p><strong>Номер:</strong> +34 644 67 47 14</p>
+    <p><strong>Сервис:</strong> 360chat</p>
+</div>
+
+<script>
+
+let currentPhone = null;
+
+async function loadChats() {
+    const res = await fetch('/api/chats');
+    const data = await res.json();
+    const chatList = document.getElementById('chatList');
+    chatList.innerHTML = '';
+    data.forEach(chat => {
+        const div = document.createElement('div');
+        div.className = 'chat-item';
+        div.innerHTML = `
+            <div class="chat-name">${chat.name}</div>
+            <div class="chat-last">${chat.lastMessage || ''}</div>
+        `;
+        div.onclick = () => openChat(chat.phone, chat.name);
+        chatList.appendChild(div);
+    });
+}
+
+async function openChat(phone, name) {
+    currentPhone = phone;
+    document.getElementById('chatHeader').innerText = name;
+    const res = await fetch('/api/messages/' + phone);
+    const data = await res.json();
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = '';
+    data.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'message ' + (msg.from === 'me' ? 'me' : 'other');
+        div.innerText = msg.text;
+        messagesDiv.appendChild(div);
+    });
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    if (!input.value || !currentPhone) return;
+    await fetch('/api/send', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ phone: currentPhone, text: input.value })
+    });
+    input.value = '';
+    openChat(currentPhone, document.getElementById('chatHeader').innerText);
+}
+
+function toggleProfile() {
+    const modal = document.getElementById('profileModal');
+    modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+}
+
+loadChats();
+
+</script>
+
+</body>
+</html>
