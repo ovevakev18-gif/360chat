@@ -43,15 +43,9 @@ app.post('/webhook', (req, res) => {
   if (!value) return;
 
   if (value.messages) {
-    value.messages.forEach(msg => {
-      const phone = msg.from.replace(/\D/g, '');
-      const text = msg.text?.body || '[media]';
-      const wabaId = msg.id;
-
-      if (value.messages) {
   value.messages.forEach(async (msg) => {
 
-    const phone = msg.from.replace(/\D/g, ''); // нормализуем номер
+    const phone = msg.from.replace(/\D/g, '');
     const text = msg.text?.body || '[media]';
     const wabaId = msg.id;
 
@@ -96,41 +90,6 @@ app.post('/webhook', (req, res) => {
 
   });
 }
-
-      if (!chats[phone]) {
-        chats[phone] = { phone, name: '+' + phone, unread: 0 };
-        messages[phone] = [];
-      }
-
-      messages[phone].push({
-        id: uuidv4(),
-        wabaId,
-        text,
-        from: phone,
-        status: 'received',
-        ts: Date.now()
-      });
-
-      chats[phone].unread++;
-
-      broadcast({ type: 'refresh' });
-    });
-  }
-
-  if (value.statuses) {
-    value.statuses.forEach(status => {
-      const phone = status.recipient_id;
-      const msgId = status.id;
-
-      if (!messages[phone]) return;
-
-      const msg = messages[phone].find(m => m.wabaId === msgId);
-      if (msg) msg.status = status.status;
-
-      broadcast({ type: 'refresh' });
-    });
-  }
-});
 
 // ================= SEND =================
 
