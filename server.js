@@ -90,7 +90,7 @@ app.post('/api/send', async (req, res) => {
 
   try {
     await axios.post(
-      `${WABA_URL}/v1/messages`,
+      `${WABA_URL}/messages`,
       {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
