@@ -58,7 +58,6 @@ app.post('/webhook', (req, res) => {
       messages[phone] = [];
     }
 
-    // 🔥 ВАЖНО — сохраняем сообщение
     messages[phone].push({
       id: Date.now() + Math.random(),
       text,
