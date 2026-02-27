@@ -1,32 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>360Chat</title>
-<style>
-body { font-family: Arial; display: flex; height: 100vh; margin: 0; }
-#chats { width: 250px; border-right: 1px solid #ddd; overflow-y: auto; }
-#chat { flex: 1; display: flex; flex-direction: column; }
-#messages { flex: 1; padding: 10px; overflow-y: auto; }
-.me { text-align: right; color: green; }
-.them { text-align: left; color: black; }
-input { padding: 10px; width: 80%; }
-button { padding: 10px; }
-.chat-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
-</style>
-</head>
-<body>
-
-<div id="chats"></div>
-
-<div id="chat">
-  <div id="messages"></div>
-  <div>
-    <input id="text" placeholder="Type message..." />
-    <button onclick="send()">Send</button>
-  </div>
-</div>
-
 <script>
 let currentPhone = null;
 const ws = new WebSocket(location.origin.replace('http', 'ws'));
@@ -46,7 +17,7 @@ async function loadChats() {
   chats.forEach(c => {
     const el = document.createElement('div');
     el.className = 'chat-item';
-    el.innerText = c.name;
+    el.innerText = c.name + (c.unread ? ' (' + c.unread + ')' : '');
     el.onclick = () => {
       currentPhone = c.phone;
       loadMessages(c.phone);
@@ -73,20 +44,39 @@ async function loadMessages(phone) {
 }
 
 async function send() {
-  const text = document.getElementById('text').value;
-  if (!text || !currentPhone) return;
+  const textInput = document.getElementById('text');
+  const text = textInput.value.trim();
 
-  await fetch('/api/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: currentPhone, text })
-  });
+  if (!currentPhone) {
+    alert('Выберите чат слева');
+    return;
+  }
 
-  document.getElementById('text').value = '';
+  if (!text) return;
+
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: currentPhone, text })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(data);
+      alert('Ошибка отправки');
+      return;
+    }
+
+    textInput.value = '';
+    loadMessages(currentPhone);
+
+  } catch (err) {
+    console.error(err);
+    alert('Сервер не отвечает');
+  }
 }
 
 loadChats();
 </script>
-
-</body>
-</html>
