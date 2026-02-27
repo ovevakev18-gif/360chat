@@ -148,6 +148,11 @@ app.post('/api/send', async (req, res) => {
 
     res.json({ success: true });
 
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+});
+
 // ================= API =================
 
 app.get('/api/chats', (req, res) => {
