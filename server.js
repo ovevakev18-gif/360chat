@@ -26,7 +26,10 @@ function broadcast(data) {
   });
 }
 
-// Webhook — incoming messages from 360dialog
+// =======================
+// WEBHOOK
+// =======================
+
 app.post('/webhook', (req, res) => {
   console.log("🔥 WEBHOOK HIT");
   console.log(JSON.stringify(req.body, null, 2));
@@ -78,75 +81,97 @@ app.post('/webhook', (req, res) => {
   });
 });
 
-    chats[phone].lastMessage = text;
-    chats[phone].lastTs = ts;
-    chats[phone].unread = (chats[phone].unread || 0) + 1;
+// =======================
+// SEND MESSAGE
+// =======================
 
-    broadcast({
-      type: 'new_message',
-      phone,
-      message: { text, from: phone, ts }
-    });
-  });
-});
-
-    chats[phone].lastMessage = text;
-    chats[phone].lastTs = ts;
-    chats[phone].unread = (chats[phone].unread || 0) + 1;
-
-    broadcast({
-      type: 'new_message',
-      phone,
-      message: { text, from: phone, ts }
-    });
-  });
-});
-
-// Send message
 app.post('/api/send', async (req, res) => {
   const { phone, text } = req.body;
+
   try {
-    const resp = await axios.post(`${WABA_URL}/v1/messages`, {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: phone,
-      type: 'text',
-      text: { body: text }
-    }, { headers: { 'D360-API-KEY': API_KEY, 'Content-Type': 'application/json' } });
+    await axios.post(
+      `${WABA_URL}/v1/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { body: text }
+      },
+      {
+        headers: {
+          'D360-API-KEY': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
     if (!messages[phone]) messages[phone] = [];
-    messages[phone].push({ id: Date.now(), text, from: 'me', ts: Date.now(), status: 'sent' });
-    if (chats[phone]) { chats[phone].lastMessage = text; chats[phone].lastTs = Date.now(); }
+
+    messages[phone].push({
+      id: Date.now(),
+      text,
+      from: 'me',
+      ts: Date.now(),
+      status: 'sent'
+    });
+
+    if (chats[phone]) {
+      chats[phone].lastMessage = text;
+      chats[phone].lastTs = Date.now();
+    }
+
     broadcast({ type: 'message_sent', phone });
+
     res.json({ success: true });
+
   } catch (e) {
     res.status(500).json({ error: e.response?.data || e.message });
   }
 });
 
-// Get chats
-app.get('/api/chats', (req, res) => res.json(Object.values(chats)));
+// =======================
+// API ROUTES
+// =======================
 
-// Get messages
-app.get('/api/messages/:phone', (req, res) => res.json(messages[req.params.phone] || []));
+app.get('/api/chats', (req, res) => {
+  res.json(Object.values(chats));
+});
 
-// Create chat
+app.get('/api/messages/:phone', (req, res) => {
+  res.json(messages[req.params.phone] || []);
+});
+
 app.post('/api/chats', (req, res) => {
   const { name, phone } = req.body;
+
   if (!chats[phone]) {
-    chats[phone] = { name, phone, unread: 0, lastMessage: '', lastTs: Date.now() };
+    chats[phone] = {
+      name,
+      phone,
+      unread: 0,
+      lastMessage: '',
+      lastTs: Date.now()
+    };
     messages[phone] = [];
   }
+
   res.json(chats[phone]);
 });
 
-// Mark read
 app.post('/api/chats/:phone/read', (req, res) => {
-  if (chats[req.params.phone]) chats[req.params.phone].unread = 0;
+  if (chats[req.params.phone]) {
+    chats[req.params.phone].unread = 0;
+  }
   res.json({ ok: true });
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
