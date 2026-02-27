@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); // 👈 фронтенд
+app.use(express.static('public'));
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -42,7 +42,7 @@ app.post('/webhook', async (req, res) => {
   const value = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return;
 
-  // ================= INCOMING MESSAGES =================
+  // ===== INCOMING MESSAGES =====
   if (value.messages) {
     for (const msg of value.messages) {
 
@@ -50,7 +50,7 @@ app.post('/webhook', async (req, res) => {
       const text = msg.text?.body || '[media]';
       const wabaId = msg.id;
 
-      // ===== MARK AS READ =====
+      // MARK AS READ
       try {
         await axios.post(
           `${WABA_URL}/messages`,
@@ -90,6 +90,24 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
+  // ===== MESSAGE STATUSES =====
+  if (value.statuses) {
+    for (const status of value.statuses) {
+
+      const phone = status.recipient_id.replace(/\D/g, '');
+      const msgId = status.id;
+
+      if (!messages[phone]) continue;
+
+      const msg = messages[phone].find(m => m.wabaId === msgId);
+      if (msg) msg.status = status.status;
+
+      broadcast({ type: 'refresh' });
+    }
+  }
+
+});
+
 // ================= SEND =================
 
 app.post('/api/send', async (req, res) => {
@@ -127,10 +145,6 @@ app.post('/api/send', async (req, res) => {
     });
 
     broadcast({ type: 'refresh' });
-
-    
-
-});
 
     res.json({ success: true });
 
