@@ -19,42 +19,10 @@ body {
     background: #f0f2f5;
 }
 
-/* LEFT SIDEBAR */
+/* SIDEBAR */
 .sidebar {
     width: 70px;
     background: #202c33;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 10px 0;
-    justify-content: space-between;
-}
-
-.sidebar-top {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-}
-
-.sidebar button {
-    background: none;
-    border: none;
-    color: #aebac1;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.profile-circle {
-    width: 40px;
-    height: 40px;
-    background: #00a884;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    font-weight: bold;
 }
 
 /* CHAT LIST */
@@ -73,17 +41,6 @@ body {
     border-bottom: 1px solid #eee;
 }
 
-.search {
-    padding: 10px;
-}
-
-.search input {
-    width: 100%;
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-}
-
 .chats {
     flex: 1;
     overflow-y: auto;
@@ -97,15 +54,6 @@ body {
 
 .chat-item:hover {
     background: #f5f6f6;
-}
-
-.chat-name {
-    font-weight: bold;
-}
-
-.chat-last {
-    font-size: 13px;
-    color: gray;
 }
 
 /* MAIN CHAT */
@@ -168,42 +116,12 @@ body {
     color: white;
     cursor: pointer;
 }
-
-/* PROFILE MODAL */
-.modal {
-    position: fixed;
-    bottom: 80px;
-    left: 20px;
-    width: 300px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    padding: 20px;
-    display: none;
-}
-
-.modal h3 {
-    margin-bottom: 10px;
-}
-
 </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="sidebar-top">
-        <button>💬</button>
-        <button>📞</button>
-        <button>⚙️</button>
-    </div>
-    <div class="profile-circle" onclick="toggleProfile()">T</div>
-</div>
-
 <div class="chatlist">
     <div class="chatlist-header">Чаты</div>
-    <div class="search">
-        <input placeholder="Поиск">
-    </div>
     <div class="chats" id="chatList"></div>
 </div>
 
@@ -211,69 +129,132 @@ body {
     <div class="chat-header" id="chatHeader">Выберите чат</div>
     <div class="messages" id="messages"></div>
     <div class="input-area">
-        <input id="messageInput" placeholder="Введите сообщение">
+        <input id="messageInput" placeholder="Введите сообщение" onkeypress="if(event.key==='Enter') sendMessage()">
         <button onclick="sendMessage()">Отправить</button>
     </div>
-</div>
-
-<div class="modal" id="profileModal">
-    <h3>Мой профиль</h3>
-    <p><strong>Номер:</strong> +34 644 67 47 14</p>
-    <p><strong>Сервис:</strong> 360chat</p>
 </div>
 
 <script>
 
 let currentPhone = null;
 
+/* =========================
+   WEBSOCKET
+========================= */
+
+const socket = new WebSocket(
+    location.protocol === 'https:'
+        ? 'wss://' + location.host
+        : 'ws://' + location.host
+);
+
+socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'new_message') {
+
+        // если чат открыт — добавляем сразу
+        if (currentPhone === data.phone) {
+            appendMessage(data.message.text, false);
+        }
+
+        loadChats();
+    }
+
+    if (data.type === 'message_sent') {
+        // можно добавить статус отправки
+    }
+};
+
+/* =========================
+   LOAD CHATS
+========================= */
+
 async function loadChats() {
     const res = await fetch('/api/chats');
     const data = await res.json();
+
     const chatList = document.getElementById('chatList');
     chatList.innerHTML = '';
+
+    data.sort((a,b) => b.lastTs - a.lastTs);
+
     data.forEach(chat => {
         const div = document.createElement('div');
         div.className = 'chat-item';
         div.innerHTML = `
-            <div class="chat-name">${chat.name}</div>
-            <div class="chat-last">${chat.lastMessage || ''}</div>
+            <div><b>${chat.name}</b></div>
+            <div style="font-size:13px;color:gray">${chat.lastMessage || ''}</div>
         `;
         div.onclick = () => openChat(chat.phone, chat.name);
         chatList.appendChild(div);
     });
 }
 
+/* =========================
+   OPEN CHAT
+========================= */
+
 async function openChat(phone, name) {
     currentPhone = phone;
     document.getElementById('chatHeader').innerText = name;
+
     const res = await fetch('/api/messages/' + phone);
     const data = await res.json();
+
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML = '';
+
     data.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = 'message ' + (msg.from === 'me' ? 'me' : 'other');
-        div.innerText = msg.text;
-        messagesDiv.appendChild(div);
+        appendMessage(msg.text, msg.from === 'me');
     });
+
+    scrollDown();
 }
+
+/* =========================
+   APPEND MESSAGE
+========================= */
+
+function appendMessage(text, isMe) {
+    const div = document.createElement('div');
+    div.className = 'message ' + (isMe ? 'me' : 'other');
+    div.innerText = text;
+
+    document.getElementById('messages').appendChild(div);
+    scrollDown();
+}
+
+function scrollDown() {
+    const container = document.getElementById('messages');
+    container.scrollTop = container.scrollHeight;
+}
+
+/* =========================
+   SEND MESSAGE
+========================= */
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
-    if (!input.value || !currentPhone) return;
+    const text = input.value.trim();
+
+    if (!text || !currentPhone) return;
+
+    // показываем мгновенно
+    appendMessage(text, true);
+
+    input.value = '';
+
     await fetch('/api/send', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ phone: currentPhone, text: input.value })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: currentPhone, text })
     });
-    input.value = '';
-    openChat(currentPhone, document.getElementById('chatHeader').innerText);
+
+    loadChats();
 }
 
-function toggleProfile() {
-    const modal = document.getElementById('profileModal');
-    modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
-}
+/* ========================= */
 
 loadChats();
 
