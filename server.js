@@ -87,7 +87,7 @@ app.post('/webhook', (req, res) => {
 
 app.post('/api/send', async (req, res) => {
   let { phone, text } = req.body;
-  phone = phone.replace('+', '');
+  phone = phone.replace(/\D/g, '');
 
   try {
     const response = await axios.post(
