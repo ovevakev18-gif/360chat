@@ -18,8 +18,6 @@ const WABA_URL = 'https://waba-v2.360dialog.io';
 let chats = {};
 let messages = {};
 
-// ================= WEBSOCKET =================
-
 function broadcast(data) {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
@@ -28,13 +26,9 @@ function broadcast(data) {
   });
 }
 
-// ================= ROOT =================
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
-// ================= WEBHOOK =================
 
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -42,15 +36,12 @@ app.post('/webhook', async (req, res) => {
   const value = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return;
 
-  // ===== INCOMING MESSAGES =====
   if (value.messages) {
     for (const msg of value.messages) {
-
       const phone = msg.from.replace(/\D/g, '');
       const text = msg.text?.body || '[media]';
       const wabaId = msg.id;
 
-      // MARK AS READ
       try {
         await axios.post(
           `${WABA_URL}/messages`,
@@ -67,7 +58,7 @@ app.post('/webhook', async (req, res) => {
           }
         );
       } catch (err) {
-        console.log('Read error:', err.response?.data || err.message);
+        console.log('Read error:', err.message);
       }
 
       if (!chats[phone]) {
@@ -85,15 +76,12 @@ app.post('/webhook', async (req, res) => {
       });
 
       chats[phone].unread++;
-
       broadcast({ type: 'refresh' });
     }
   }
 
-  // ===== MESSAGE STATUSES =====
   if (value.statuses) {
     for (const status of value.statuses) {
-
       const phone = status.recipient_id.replace(/\D/g, '');
       const msgId = status.id;
 
@@ -105,10 +93,7 @@ app.post('/webhook', async (req, res) => {
       broadcast({ type: 'refresh' });
     }
   }
-
 });
-
-// ================= SEND =================
 
 app.post('/api/send', async (req, res) => {
   let { phone, text } = req.body;
@@ -149,11 +134,9 @@ app.post('/api/send', async (req, res) => {
     res.json({ success: true });
 
   } catch (e) {
-    res.status(500).json({ error: e.response?.data || e.message });
+    res.status(500).json({ error: e.message });
   }
 });
-
-// ================= API =================
 
 app.get('/api/chats', (req, res) => {
   res.json(Object.values(chats));
@@ -162,8 +145,6 @@ app.get('/api/chats', (req, res) => {
 app.get('/api/messages/:phone', (req, res) => {
   res.json(messages[req.params.phone] || []);
 });
-
-// ================= START =================
 
 const PORT = process.env.PORT || 10000;
 
