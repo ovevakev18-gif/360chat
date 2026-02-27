@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360Chat — WhatsApp Business</title>
+<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #111b21;
+  color: #e9edef;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 390px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #2a3942;
+  background: #111b21;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #202c33;
+  height: 60px;
+  gap: 10px;
+}
+
+.header-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #00a884;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 600; color: #111b21;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 500;
+  color: #e9edef;
+}
+
+.header-actions { display: flex; gap: 6px; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: #aebac1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: #2a3942; }
+
+/* Search */
+.search-wrap {
+  padding: 8px 12px;
+  background: #111b21;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #202c33;
+  border-radius: 8px;
+  padding: 0 12px;
+  gap: 10px;
+}
+
+.search-box input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e9edef;
+  font-size: 14px;
+  padding: 9px 0;
+  font-family: inherit;
+}
+
+.search-box input::placeholder { color: #8696a0; }
+.search-icon { color: #8696a0; font-size: 16px; }
+
+/* Chat list */
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chat-list::-webkit-scrollbar { width: 6px; }
+.chat-list::-webkit-scrollbar-thumb { background: #374045; border-radius: 3px; }
+
+.chat-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #1f2c33;
+  transition: background 0.1s;
+  position: relative;
+}
+.chat-item:hover { background: #202c33; }
+.chat-item.active { background: #2a3942; }
+
+.chat-avatar {
+  width: 49px; height: 49px;
+  border-radius: 50%;
+  background: #6b7c85;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 500; color: #fff;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.chat-body { flex: 1; min-width: 0; }
+
+.chat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+
+.chat-name {
+  font-size: 17px;
+  font-weight: 400;
+  color: #e9edef;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.chat-time {
+  font-size: 12px;
+  color: #8696a0;
+  white-space: nowrap;
+}
+
+.chat-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-preview {
+  font-size: 14px;
+  color: #8696a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.unread {
+  background: #00a884;
+  color: #111b21;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 20px; height: 20px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px;
+}
+
+.empty-list {
+  padding: 40px 20px;
+  text-align: center;
+  color: #8696a0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* ── CHAT AREA ── */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0b141a;
+  background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h300v300H0z' fill='%230b141a'/%3E%3C/svg%3E");
+  position: relative;
+}
+
+.chat-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image: url("https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png");
+  background-repeat: repeat;
+  pointer-events: none;
+}
+
+.no-chat-selected {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: #8696a0;
+  position: relative;
+  z-index: 1;
+}
+
+.no-chat-selected .big-icon { font-size: 80px; opacity: 0.3; }
+.no-chat-selected h2 { font-size: 32px; font-weight: 300; color: #e9edef; }
+.no-chat-selected p { font-size: 14px; text-align: center; max-width: 320px; line-height: 1.6; }
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #202c33;
+  height: 60px;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.chat-header-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #6b7c85;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 500; color: #fff;
+  flex-shrink: 0;
+}
+
+.chat-header-info { flex: 1; }
+.chat-header-name { font-size: 17px; font-weight: 500; color: #e9edef; }
+.chat-header-status { font-size: 13px; color: #8696a0; }
+
+/* Messages */
+.messages-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.messages-wrap::-webkit-scrollbar { width: 6px; }
+.messages-wrap::-webkit-scrollbar-thumb { background: #374045; border-radius: 3px; }
+
+.msg-row {
+  display: flex;
+  margin-bottom: 2px;
+}
+
+.msg-row.sent { justify-content: flex-end; }
+.msg-row.recv { justify-content: flex-start; }
+
+.msg-bubble {
+  max-width: 65%;
+  padding: 7px 12px 8px;
+  border-radius: 8px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  word-break: break-word;
+  position: relative;
+}
+
+.msg-row.sent .msg-bubble {
+  background: #005c4b;
+  border-bottom-right-radius: 2px;
+}
+
+.msg-row.recv .msg-bubble {
+  background: #202c33;
+  border-bottom-left-radius: 2px;
+}
+
+.msg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.msg-time-text {
+  font-size: 11px;
+  color: #8696a0;
+  white-space: nowrap;
+}
+
+.msg-status-icon { font-size: 14px; color: #53bdeb; }
+.msg-status-icon.sent-only { color: #8696a0; }
+.msg-status-icon.error { color: #f15c6d; }
+
+.date-sep {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+.date-sep span {
+  background: #182229;
+  color: #8696a0;
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.3);
+}
+
+/* Input */
+.input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #202c33;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.input-box {
+  flex: 1;
+  background: #2a3942;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.input-box textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e9edef;
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+  min-height: 24px;
+  max-height: 140px;
+  line-height: 1.5;
+}
+
+.input-box textarea::placeholder { color: #8696a0; }
+
+.send-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: #00a884;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.send-btn:hover:not(:disabled) { background: #06cf9c; }
+.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── MODALS ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  background: #233138;
+  border-radius: 12px;
+  padding: 24px;
+  width: 380px;
+  max-width: 95vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.modal h3 { font-size: 18px; font-weight: 500; margin-bottom: 20px; color: #e9edef; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; color: #8696a0; margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.form-input {
+  width: 100%;
+  background: #2a3942;
+  border: 1px solid #374045;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e9edef;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-input:focus { border-color: #00a884; }
+.form-input::placeholder { color: #8696a0; }
+
+.modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+
+.btn-cancel {
+  flex: 1; padding: 10px;
+  background: none; border: 1px solid #374045;
+  border-radius: 8px; color: #8696a0;
+  font-size: 15px; cursor: pointer;
+  transition: all 0.2s; font-family: inherit;
+}
+.btn-cancel:hover { border-color: #8696a0; color: #e9edef; }
+
+.btn-ok {
+  flex: 1; padding: 10px;
+  background: #00a884; border: none;
+  border-radius: 8px; color: #fff;
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: background 0.2s; font-family: inherit;
+}
+.btn-ok:hover { background: #06cf9c; }
+
+/* Toast */
+.toast-wrap {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: center;
+}
+
+.toast {
+  background: #233138;
+  color: #e9edef;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s ease;
+  white-space: nowrap;
+}
+.toast.ok { border-left: 3px solid #00a884; }
+.toast.err { border-left: 3px solid #f15c6d; }
+
+@keyframes toastIn {
+  from { opacity:0; transform: translateY(8px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+.avatar-colors {
+  --c0: #6b7c85; --c1: #d9636f; --c2: #e6900a;
+  --c3: #8e6ab8; --c4: #2e7bb4; --c5: #00a884;
+}
+</style>
+</head>
+<body class="avatar-colors">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="header-avatar">W</div>
+    <div class="header-title">360Chat</div>
+    <div class="header-actions">
+      <button class="icon-btn" title="Новый чат" onclick="openNewChat()">✏️</button>
+      <button class="icon-btn" title="Настройки" onclick="openSettings()">⚙️</button>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Поиск или новый чат" id="searchInput" oninput="filterChats()">
+    </div>
+  </div>
+
+  <div class="chat-list" id="chatList"></div>
+</div>
+
+<!-- CHAT AREA -->
+<div class="chat-area" id="chatArea">
+  <div class="chat-bg"></div>
+  <div class="no-chat-selected">
+    <div class="big-icon">💬</div>
+    <h2>360Chat</h2>
+    <p>Отправляйте и получайте сообщения через WhatsApp Business API. Выберите чат слева.</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- NEW CHAT MODAL -->
+<div class="overlay" id="newChatModal" style="display:none" onclick="if(event.target===this)closeModal('newChatModal')">
+  <div class="modal">
+    <h3>Новый чат</h3>
+    <div class="form-group">
+      <label class="form-label">Имя контакта</label>
+      <input class="form-input" id="ncName" placeholder="Иван Иванов">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Номер телефона</label>
+      <input class="form-input" id="ncPhone" placeholder="79991234567">
+      <div style="font-size:12px;color:#8696a0;margin-top:5px">Без + и пробелов: 79991234567</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('newChatModal')">Отмена</button>
+      <button class="btn-ok" onclick="createChat()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settingsModal" style="display:none" onclick="if(event.target===this)closeModal('settingsModal')">
+  <div class="modal">
+    <h3>⚙️ Настройки</h3>
+    <div class="form-group">
+      <label class="form-label">API Key (360dialog)</label>
+      <input class="form-input" id="setKey" placeholder="Ваш API ключ">
+    </div>
+    <div style="background:#182229;border-radius:8px;padding:12px;font-size:13px;color:#8696a0;line-height:1.7">
+      📌 Webhook URL для 360dialog:<br>
+      <span id="webhookDisplay" style="color:#00a884;font-family:monospace;font-size:12px"></span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('settingsModal')">Отмена</button>
+      <button class="btn-ok" onclick="saveSettings()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────
+let chats = {};
+let messages = {};
+let activePhone = null;
+let ws = null;
+let apiKey = '62MY9vMEMnTNH6wOBR7s8EAWAK';
+
+const COLORS = ['#6b7c85','#d9636f','#e6900a','#8e6ab8','#2e7bb4','#00a884'];
+function avatarColor(str) {
+  let h = 0;
+  for (let c of str) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return COLORS[h % COLORS.length];
+}
+
+function initials(name) {
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ─── API ─────────────────────────────────────────────────────
+async function apiFetch(url, opts={}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts
+  });
+  return res.json();
+}
+
+async function loadChats() {
+  try {
+    const data = await apiFetch('/api/chats');
+    chats = {};
+    data.forEach(c => chats[c.phone] = c);
+    renderChatList();
+  } catch(e) {}
+}
+
+async function loadMessages(phone) {
+  try {
+    const data = await apiFetch(`/api/messages/${phone}`);
+    messages[phone] = data;
+  } catch(e) {}
+}
+
+// ─── WEBSOCKET ───────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'new_message') {
+      loadChats();
+      if (activePhone === msg.phone) {
+        loadMessages(msg.phone).then(() => renderMessages());
+      }
+    }
+    if (msg.type === 'message_sent') {
+      if (activePhone === msg.phone) {
+        loadMessages(msg.phone).then(() => renderMessages());
+      }
+      loadChats();
+    }
+  };
+
+  ws.onclose = () => setTimeout(connectWS, 3000);
+}
+
+// ─── RENDER CHAT LIST ────────────────────────────────────────
+function renderChatList(filter='') {
+  const list = document.getElementById('chatList');
+  const items = Object.values(chats)
+    .filter(c => !filter || c.name.toLowerCase().includes(filter.toLowerCase()) || c.phone.includes(filter))
+    .sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
+
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-list">
+      ${filter ? 'Контакты не найдены' : 'Нет чатов.<br>Нажмите ✏️ чтобы начать'}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(c => {
+    const ini = initials(c.name);
+    const col = avatarColor(c.name);
+    const preview = c.lastMessage ? c.lastMessage.slice(0,40) : '';
+    const time = c.lastTs ? formatTime(c.lastTs) : '';
+    const active = activePhone === c.phone ? 'active' : '';
+    const badge = c.unread > 0 ? `<span class="unread">${c.unread}</span>` : '';
+    return `<div class="chat-item ${active}" onclick="selectChat('${c.phone}')">
+      <div class="chat-avatar" style="background:${col}">${ini}</div>
+      <div class="chat-body">
+        <div class="chat-top">
+          <span class="chat-name">${esc(c.name)}</span>
+          <span class="chat-time">${time}</span>
+        </div>
+        <div class="chat-bottom">
+          <span class="chat-preview">${esc(preview)}</span>
+          ${badge}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── SELECT CHAT ─────────────────────────────────────────────
+async function selectChat(phone) {
+  activePhone = phone;
+  await loadMessages(phone);
+  apiFetch(`/api/chats/${phone}/read`, { method: 'POST' });
+  if (chats[phone]) chats[phone].unread = 0;
+  renderChatList(document.getElementById('searchInput').value);
+  renderChatArea();
+}
+
+function renderChatArea() {
+  const area = document.getElementById('chatArea');
+  const chat = chats[activePhone];
+  if (!chat) return;
+
+  const ini = initials(chat.name);
+  const col = avatarColor(chat.name);
+
+  area.innerHTML = `
+    <div class="chat-bg"></div>
+    <div class="chat-header">
+      <div class="chat-header-avatar" style="background:${col}">${ini}</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">${esc(chat.name)}</div>
+        <div class="chat-header-status">+${chat.phone}</div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="deleteChat('${chat.phone}')" title="Удалить">🗑️</button>
+      </div>
+    </div>
+    <div class="messages-wrap" id="msgsWrap"></div>
+    <div class="input-bar">
+      <div class="input-box">
+        <textarea id="msgInput" placeholder="Введите сообщение" rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
+    </div>
+  `;
+
+  renderMessages();
+  document.getElementById('msgInput').focus();
+}
+
+function renderMessages() {
+  const wrap = document.getElementById('msgsWrap');
+  if (!wrap) return;
+  const msgs = messages[activePhone] || [];
+
+  if (!msgs.length) {
+    wrap.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <div class="date-sep"><span>Начните переписку</span></div>
+    </div>`;
+    scrollBottom();
+    return;
+  }
+
+  let html = '';
+  let lastDate = '';
+
+  msgs.forEach(m => {
+    const d = new Date(m.ts);
+    const dateStr = d.toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
+    if (dateStr !== lastDate) {
+      html += `<div class="date-sep"><span>${dateStr}</span></div>`;
+      lastDate = dateStr;
+    }
+
+    const isSent = m.from === 'me';
+    let statusIcon = '';
+    if (isSent) {
+      if (m.status === 'sending') statusIcon = `<span class="msg-status-icon sent-only">🕐</span>`;
+      else if (m.status === 'error') statusIcon = `<span class="msg-status-icon error">✗</span>`;
+      else statusIcon = `<span class="msg-status-icon">✓✓</span>`;
+    }
+
+    html += `<div class="msg-row ${isSent ? 'sent' : 'recv'}">
+      <div class="msg-bubble">
+        ${esc(m.text)}
+        <div class="msg-footer">
+          <span class="msg-time-text">${formatTimeFull(m.ts)}</span>
+          ${statusIcon}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  wrap.innerHTML = html;
+  scrollBottom();
+}
+
+// ─── SEND ────────────────────────────────────────────────────
+async function sendMsg() {
+  if (!activePhone) return;
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  autoResize(input);
+
+  const btn = document.getElementById('sendBtn');
+  if (btn) btn.disabled = true;
+
+  // Optimistic UI
+  if (!messages[activePhone]) messages[activePhone] = [];
+  const tmpId = Date.now();
+  messages[activePhone].push({ id: tmpId, text, from: 'me', ts: Date.now(), status: 'sending' });
+  renderMessages();
+
+  try {
+    const res = await apiFetch('/api/send', {
+      method: 'POST',
+      body: JSON.stringify({ phone: activePhone, text })
+    });
+    if (res.success) {
+      // update status
+      const m = messages[activePhone].find(x => x.id === tmpId);
+      if (m) m.status = 'sent';
+      if (chats[activePhone]) { chats[activePhone].lastMessage = text; chats[activePhone].lastTs = Date.now(); }
+      renderMessages();
+      renderChatList(document.getElementById('searchInput').value);
+    } else {
+      throw new Error(res.error?.message || 'Ошибка API');
+    }
+  } catch(e) {
+    const m = messages[activePhone].find(x => x.id === tmpId);
+    if (m) m.status = 'error';
+    renderMessages();
+    toast('❌ ' + e.message, 'err');
+  }
+
+  if (btn) btn.disabled = false;
+}
+
+// ─── CHAT CRUD ────────────────────────────────────────────────
+function openNewChat() {
+  document.getElementById('ncName').value = '';
+  document.getElementById('ncPhone').value = '';
+  openModal('newChatModal');
+  setTimeout(() => document.getElementById('ncName').focus(), 100);
+}
+
+async function createChat() {
+  const name = document.getElementById('ncName').value.trim();
+  const phone = document.getElementById('ncPhone').value.trim().replace(/\D/g,'');
+  if (!name) { toast('Введите имя', 'err'); return; }
+  if (phone.length < 7) { toast('Введите номер телефона', 'err'); return; }
+
+  await apiFetch('/api/chats', {
+    method: 'POST',
+    body: JSON.stringify({ name, phone })
+  });
+
+  closeModal('newChatModal');
+  await loadChats();
+  selectChat(phone);
+}
+
+async function deleteChat(phone) {
+  if (!confirm('Удалить чат?')) return;
+  delete chats[phone];
+  delete messages[phone];
+  if (activePhone === phone) {
+    activePhone = null;
+    document.getElementById('chatArea').innerHTML = `
+      <div class="chat-bg"></div>
+      <div class="no-chat-selected">
+        <div class="big-icon">💬</div>
+        <h2>360Chat</h2>
+        <p>Выберите чат слева чтобы начать переписку</p>
+      </div>`;
+  }
+  renderChatList();
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('setKey').value = apiKey;
+  document.getElementById('webhookDisplay').textContent = location.origin + '/webhook';
+  openModal('settingsModal');
+}
+
+function saveSettings() {
+  apiKey = document.getElementById('setKey').value.trim();
+  closeModal('settingsModal');
+  toast('✅ Настройки сохранены', 'ok');
+}
+
+// ─── UTILS ───────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).style.display = ''; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+}
+
+function formatTimeFull(ts) {
+  return new Date(ts).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+}
+
+function scrollBottom() {
+  const el = document.getElementById('msgsWrap');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+function filterChats() {
+  renderChatList(document.getElementById('searchInput').value);
+}
+
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+loadChats();
+connectWS();
+setInterval(loadChats, 15000);
+</script>
+</body>
+</html>
