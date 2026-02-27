@@ -90,6 +90,51 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
+// ================= SEND =================
+
+app.post('/api/send', async (req, res) => {
+  let { phone, text } = req.body;
+  phone = phone.replace(/\D/g, '');
+
+  try {
+    const response = await axios.post(
+      `${WABA_URL}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: { body: text }
+      },
+      {
+        headers: {
+          'D360-API-KEY': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const wabaId = response.data.messages[0].id;
+
+    if (!messages[phone]) messages[phone] = [];
+
+    messages[phone].push({
+      id: uuidv4(),
+      wabaId,
+      text,
+      from: 'me',
+      status: 'sent',
+      ts: Date.now()
+    });
+
+    broadcast({ type: 'refresh' });
+
+    res.json({ success: true });
+
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+});
+  
   // ================= MESSAGE STATUSES =================
   if (value.statuses) {
     for (const status of value.statuses) {
