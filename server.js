@@ -94,7 +94,11 @@ app.post('/webhook', (req, res) => {
 // ================= SEND MESSAGE =================
 
 app.post('/api/send', async (req, res) => {
-  const { phone, text } = req.body;
+  let { phone, text } = req.body;
+
+  phone = phone.replace('+', '');
+
+  console.log("SENDING TO:", phone);
 
   try {
     const response = await axios.post(
@@ -147,6 +151,8 @@ app.get('/api/messages/:phone', (req, res) => {
 
 // ================= START =================
 
-server.listen(3000, () => {
-  console.log('🚀 WhatsApp Server Running');
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log('🚀 WhatsApp Server Running on port', PORT);
 });
