@@ -44,7 +44,7 @@ app.post('/webhook', (req, res) => {
 
   if (value.messages) {
     value.messages.forEach(msg => {
-      const phone = msg.from;
+      const phone = msg.from.replace(/\D/g, '');
       const text = msg.text?.body || '[media]';
       const wabaId = msg.id;
 
