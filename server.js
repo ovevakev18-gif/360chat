@@ -36,98 +36,77 @@ app.get('/', (req, res) => {
 
 // ================= WEBHOOK =================
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 
   const value = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return;
 
+  // ================= INCOMING MESSAGES =================
   if (value.messages) {
-  value.messages.forEach(async (msg) => {
+    for (const msg of value.messages) {
 
-    const phone = msg.from.replace(/\D/g, '');
-    const text = msg.text?.body || '[media]';
-    const wabaId = msg.id;
+      const phone = msg.from.replace(/\D/g, '');
+      const text = msg.text?.body || '[media]';
+      const wabaId = msg.id;
 
-    // ================= MARK AS READ =================
-    try {
-      await axios.post(
-        `${WABA_URL}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          status: 'read',
-          message_id: wabaId
-        },
-        {
-          headers: {
-            'D360-API-KEY': API_KEY,
-            'Content-Type': 'application/json'
+      // ===== MARK AS READ =====
+      try {
+        await axios.post(
+          `${WABA_URL}/messages`,
+          {
+            messaging_product: 'whatsapp',
+            status: 'read',
+            message_id: wabaId
+          },
+          {
+            headers: {
+              'D360-API-KEY': API_KEY,
+              'Content-Type': 'application/json'
+            }
           }
-        }
-      );
-    } catch (err) {
-      console.log('Read error:', err.response?.data || err.message);
-    }
-    // =================================================
-
-    if (!chats[phone]) {
-      chats[phone] = { phone, name: '+' + phone, unread: 0 };
-      messages[phone] = [];
-    }
-
-    messages[phone].push({
-      id: uuidv4(),
-      wabaId,
-      text,
-      from: phone,
-      status: 'received',
-      ts: Date.now()
-    });
-
-    chats[phone].unread++;
-
-    broadcast({ type: 'refresh' });
-
-  });
-}
-
-// ================= SEND =================
-
-app.post('/api/send', async (req, res) => {
-  let { phone, text } = req.body;
-  phone = phone.replace(/\D/g, '');
-
-  try {
-    const response = await axios.post(
-      `${WABA_URL}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to: phone,
-        type: 'text',
-        text: { body: text }
-      },
-      {
-        headers: {
-          'D360-API-KEY': API_KEY,
-          'Content-Type': 'application/json'
-        }
+        );
+      } catch (err) {
+        console.log('Read error:', err.response?.data || err.message);
       }
-    );
 
-    const wabaId = response.data.messages[0].id;
+      if (!chats[phone]) {
+        chats[phone] = { phone, name: '+' + phone, unread: 0 };
+        messages[phone] = [];
+      }
 
-    if (!messages[phone]) messages[phone] = [];
+      messages[phone].push({
+        id: uuidv4(),
+        wabaId,
+        text,
+        from: phone,
+        status: 'received',
+        ts: Date.now()
+      });
 
-    messages[phone].push({
-      id: uuidv4(),
-      wabaId,
-      text,
-      from: 'me',
-      status: 'sent',
-      ts: Date.now()
-    });
+      chats[phone].unread++;
 
-    broadcast({ type: 'refresh' });
+      broadcast({ type: 'refresh' });
+    }
+  }
+
+  // ================= MESSAGE STATUSES =================
+  if (value.statuses) {
+    for (const status of value.statuses) {
+
+      const phone = status.recipient_id.replace(/\D/g, '');
+      const msgId = status.id;
+
+      if (!messages[phone]) continue;
+
+      const msg = messages[phone].find(m => m.wabaId === msgId);
+      if (msg) msg.status = status.status;
+
+      broadcast({ type: 'refresh' });
+    }
+  }
+
+});
 
     res.json({ success: true });
 
